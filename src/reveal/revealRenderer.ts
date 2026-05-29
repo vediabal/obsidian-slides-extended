@@ -138,11 +138,37 @@ export class RevealRenderer {
             enableMenu,
             enableTimeBar,
             enablePointer,
+            enableSmartEnhancements,
             mathEngine,
         } = settings;
 
         const isKaTeX = mathEngine === "katex";
         const isMathJax = mathEngine === "mathjax";
+
+        // Build smart enhancements config for the client-side plugin
+        const pluginSettings = this.utils.getSettings();
+        const smartConfig = {
+            smartScroll: pluginSettings.smartScroll ?? true,
+            defaultScale: pluginSettings.defaultScale ?? 1.0,
+            listBlock: pluginSettings.listBlock ?? false,
+            typeScaleStrategy: pluginSettings.typeScaleStrategy ?? "classic",
+            typeScaleRatio: pluginSettings.typeScaleRatio ?? 1.333,
+            typeScaleTightRatio: pluginSettings.typeScaleTightRatio ?? 1.2,
+            typeScaleOpenRatio: pluginSettings.typeScaleOpenRatio ?? 1.414,
+            fontFamily: pluginSettings.fontFamily ?? "system",
+            banner: {
+                enabled: pluginSettings.bannerEnabled ?? false,
+                text: pluginSettings.bannerText ?? "",
+                fontFamily: pluginSettings.bannerFontFamily ?? "inherit",
+                fontSize: pluginSettings.bannerFontSize ?? 14,
+                align: pluginSettings.bannerAlign ?? "center",
+                bgColor: pluginSettings.bannerBgColor ?? "#1a1d24",
+                textColor: pluginSettings.bannerTextColor ?? "#e6e9ef",
+                showDatetime: pluginSettings.bannerShowDatetime ?? false,
+                datetimeFormat:
+                    pluginSettings.bannerDatetimeFormat ?? "YYYY-MM-DD HH:mm",
+            },
+        };
 
         let base = "";
         if (!getMediaCollector().shouldCollect()) {
@@ -166,6 +192,8 @@ export class RevealRenderer {
             enableMenu,
             enablePointer,
             enableTimeBar,
+            enableSmartEnhancements: enableSmartEnhancements !== false,
+            smartConfigStr: JSON.stringify(smartConfig),
             isKaTeX,
             isMathJax,
             revealOptionsStr: JSON.stringify(revealOptions),

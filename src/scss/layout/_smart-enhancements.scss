@@ -1,0 +1,209 @@
+// Smart slides enhancements
+// Ported from openmd worktree-exp+slides experiment
+// See: slides/obsidian-slides-extended-improve-plan.md
+
+// ── T1.1: Inline code background ──────────────────────────────────────
+.reveal :not(pre) > code {
+    background: rgba(128, 128, 128, 0.15);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 0.9em;
+}
+
+// ── T1.2: Code block language labels ──────────────────────────────────
+.reveal pre {
+    position: relative;
+}
+
+.reveal pre[data-lang]::after {
+    content: attr(data-lang);
+    position: absolute;
+    top: 6px;
+    right: 10px;
+    font: 10px/1 -apple-system, "Segoe UI", system-ui, sans-serif;
+    color: rgba(128, 128, 128, 0.55);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    pointer-events: none;
+}
+
+// ── T1.4: Sub-slide breadcrumb ────────────────────────────────────────
+.sub-breadcrumb {
+    position: absolute;
+    top: 8px;
+    left: 16px;
+    font-size: 24px;
+    color: rgba(128, 128, 128, 0.45);
+    z-index: 10;
+    pointer-events: none;
+    letter-spacing: 0.03em;
+    font-style: italic;
+}
+
+// ── T1.5: List block/inline toggle ────────────────────────────────────
+.reveal.list-block .slide-content ul,
+.reveal.list-block .slide-content ol,
+.reveal.list-block section ul,
+.reveal.list-block section ol {
+    display: block;
+    width: 100%;
+}
+
+// ── T1.6: TOC overlay ────────────────────────────────────────────────
+#se-toc-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+}
+
+#se-toc-overlay.open {
+    display: flex;
+}
+
+#se-toc-panel {
+    background: var(--r-background-color, #222);
+    color: var(--r-main-color, #fff);
+    border-radius: 12px;
+    padding: 24px 32px;
+    max-width: 700px;
+    width: 90vw;
+    max-height: 80vh;
+    overflow-y: auto;
+    font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+}
+
+#se-toc-panel h3 {
+    margin: 0 0 16px;
+    font-size: 18px;
+    opacity: 0.7;
+}
+
+.se-toc-item {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    padding: 6px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background 0.15s;
+
+    &:hover {
+        background: rgba(128, 128, 128, 0.2);
+    }
+
+    &.active {
+        background: rgba(90, 169, 255, 0.2);
+    }
+}
+
+.se-toc-page {
+    flex-shrink: 0;
+    width: 28px;
+    text-align: right;
+    opacity: 0.5;
+    font-size: 12px;
+}
+
+.se-toc-text {
+    flex: 1;
+}
+
+.se-toc-h1 {
+    .se-toc-text { font-size: 16px; font-weight: 600; }
+}
+
+.se-toc-h2 {
+    .se-toc-text { font-size: 14px; }
+    padding-left: 20px;
+}
+
+.se-toc-h3 {
+    .se-toc-text { font-size: 13px; }
+    padding-left: 40px;
+}
+
+.se-toc-h4 {
+    .se-toc-text { font-size: 12px; }
+    padding-left: 60px;
+}
+
+// ── T1.3: GitHub-style callout enhancements ───────────────────────────
+// The plugin already has callout CSS (_callouts.scss).
+// We add the GitHub-flavored icon+color mappings for the standard 5 types.
+// The DOM transformation is handled by the post-process plugin script.
+
+.callout-note {
+    --callout-color: 31, 111, 235;
+}
+
+.callout-tip {
+    --callout-color: 26, 127, 55;
+}
+
+.callout-important {
+    --callout-color: 130, 80, 223;
+}
+
+.callout-warning {
+    --callout-color: 191, 135, 0;
+}
+
+.callout-caution {
+    --callout-color: 207, 34, 46;
+}
+
+// ── T2.1: Type scale CSS vars ─────────────────────────────────────────
+.reveal .slides {
+    --h1-size: 2.37em;
+    --h2-size: 1.78em;
+    --h3-size: 1.33em;
+    --h4-size: 1.15em;
+}
+
+.reveal .slides h1 { font-size: var(--h1-size); }
+.reveal .slides h2 { font-size: var(--h2-size); }
+.reveal .slides h3 { font-size: var(--h3-size); }
+.reveal .slides h4 { font-size: var(--h4-size); }
+
+// ── T3.1: Smart scroll/zoom per-slide ─────────────────────────────────
+.reveal section.se-scroll {
+    overflow-y: auto;
+}
+
+// ── T3.2: Banner ──────────────────────────────────────────────────────
+#se-banner {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 50;
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 20px;
+    min-height: 28px;
+    font-size: 14px;
+    line-height: 1.4;
+    transition: opacity 0.2s;
+
+    &.visible {
+        display: flex;
+    }
+}
+
+#se-banner .banner-text {
+    flex: 1;
+}
+
+#se-banner .banner-datetime {
+    flex-shrink: 0;
+    margin-left: 20px;
+    opacity: 0.7;
+    font-size: 0.85em;
+    white-space: nowrap;
+}

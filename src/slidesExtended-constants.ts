@@ -34,6 +34,25 @@ export const DEFAULT_SETTINGS: SlidesExtendedSettings = {
     remoteScripts: "",
     separator: "",
     verticalSeparator: "",
+    // Smart enhancements
+    enableSmartEnhancements: true,
+    listBlock: false,
+    smartScroll: true,
+    defaultScale: 1.0,
+    typeScaleStrategy: "classic",
+    typeScaleRatio: 1.333,
+    typeScaleTightRatio: 1.2,
+    typeScaleOpenRatio: 1.414,
+    fontFamily: "system",
+    bannerEnabled: false,
+    bannerText: "",
+    bannerFontFamily: '-apple-system, "Segoe UI", system-ui, sans-serif',
+    bannerFontSize: 14,
+    bannerAlign: "center",
+    bannerBgColor: "#1a1d24",
+    bannerTextColor: "#e6e9ef",
+    bannerShowDatetime: false,
+    bannerDatetimeFormat: "YYYY-MM-DD HH:mm",
 };
 export const DEFAULTS: Options = {
     bg: "",
@@ -60,6 +79,7 @@ export const DEFAULTS: Options = {
     verticalSeparator: "\r?\n--\r?\n",
     width: 960,
     mathEngine: "katex",
+    enableSmartEnhancements: true,
 };
 
 export const DISABLED_IMAGE_COLLECTOR: MediaCollector = {

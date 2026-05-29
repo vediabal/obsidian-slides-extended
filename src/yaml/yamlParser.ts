@@ -128,6 +128,7 @@ export class YamlParser {
             "enableCustomControls",
             "enableTimeBar",
             "enablePointer",
+            "enableSmartEnhancements",
             "mathEngine",
         ];
 

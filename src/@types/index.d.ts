@@ -36,6 +36,25 @@ export interface SlidesExtendedSettings {
     remoteScripts: string;
     separator: string;
     verticalSeparator: string;
+    // Smart enhancements (ported from openmd experiment)
+    enableSmartEnhancements: boolean;
+    listBlock: boolean;
+    smartScroll: boolean;
+    defaultScale: number;
+    typeScaleStrategy: "classic" | "dual" | "material";
+    typeScaleRatio: number;
+    typeScaleTightRatio: number;
+    typeScaleOpenRatio: number;
+    fontFamily: string;
+    bannerEnabled: boolean;
+    bannerText: string;
+    bannerFontFamily: string;
+    bannerFontSize: number;
+    bannerAlign: "left" | "center" | "right";
+    bannerBgColor: string;
+    bannerTextColor: string;
+    bannerShowDatetime: boolean;
+    bannerDatetimeFormat: string;
 }
 
 export type ChartJsOptions = {
@@ -73,6 +92,7 @@ export type Options = {
     enableCustomControls: boolean;
     transition: string;
     mathEngine: "katex" | "mathjax";
+    enableSmartEnhancements: boolean;
     [key: string]: unknown;
 };
 

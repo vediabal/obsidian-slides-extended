@@ -228,6 +228,14 @@ const parameters = {
             }
         }),
         copy({
+            assets: {
+                from: [
+                    'reveal/plugin/smart-enhancements/*',
+                ],
+                to: ['./plugin/smart-enhancements/'],
+            }
+        }),
+        copy({
             assets: prod ? {} : {
                 from: ['.hotreload'],
                 to: ['.hotreload'],

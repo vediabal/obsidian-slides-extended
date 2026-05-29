@@ -146,6 +146,13 @@
     <script src="{{{.}}}"></script>
     {{/remoteScriptPaths}}
 
+    <script src="{{{base}}}plugin/smart-enhancements/smart-enhancements.js"></script>
+    {{#enableSmartEnhancements}}
+    <script>
+        window.__SE_SMART_CONFIG__ = {{{smartConfigStr}}};
+    </script>
+    {{/enableSmartEnhancements}}
+
     <script>
         function extend() {
             const target = {};
@@ -194,6 +201,7 @@
                 RevealHighlight,
                 RevealZoom,
                 RevealNotes,
+                SmartEnhancements,
                 {{#isKaTeX}}
                 RevealMath.KaTeX,
                 {{/isKaTeX}}

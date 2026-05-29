@@ -463,5 +463,261 @@ export class SlidesExtendedSettingTab extends PluginSettingTab {
                             | "mathjax";
                     });
             });
+
+        // ── Smart Enhancements ────────────────────────────────────────
+
+        new Setting(containerEl)
+            .setName("Smart enhancements")
+            .setHeading()
+            .setDesc(
+                "Enhanced rendering features: type scale, smart scroll/zoom, callouts, TOC, breadcrumbs, and more.",
+            );
+
+        new Setting(containerEl)
+            .setName("Enable smart enhancements")
+            .setDesc(
+                "Enable post-processing enhancements: callouts, code labels, breadcrumbs, TOC (t key), and smart scroll/zoom.",
+            )
+            .addToggle((value) =>
+                value
+                    .setValue(this.newSettings.enableSmartEnhancements)
+                    .onChange((value) => {
+                        this.newSettings.enableSmartEnhancements = value;
+                    }),
+            );
+
+        new Setting(containerEl)
+            .setName("Smart scroll/zoom")
+            .setDesc(
+                "Automatically decide per-slide whether to scale down or enable scrolling. Code blocks and diagrams trigger scrolling sooner.",
+            )
+            .addToggle((value) =>
+                value
+                    .setValue(this.newSettings.smartScroll)
+                    .onChange((value) => {
+                        this.newSettings.smartScroll = value;
+                    }),
+            );
+
+        new Setting(containerEl)
+            .setName("Block lists")
+            .setDesc(
+                "Force lists to display full-width (no side-by-side flow).",
+            )
+            .addToggle((value) =>
+                value.setValue(this.newSettings.listBlock).onChange((value) => {
+                    this.newSettings.listBlock = value;
+                }),
+            );
+
+        new Setting(containerEl)
+            .setName("Default scale")
+            .setDesc(
+                "Global scale multiplier for all slides (0.5–2.0). Default: 1.0.",
+            )
+            .addSlider((slider) =>
+                slider
+                    .setLimits(0.5, 2.0, 0.05)
+                    .setValue(this.newSettings.defaultScale)
+                    .setDynamicTooltip()
+                    .onChange((value) => {
+                        this.newSettings.defaultScale = value;
+                    }),
+            );
+
+        new Setting(containerEl)
+            .setName("Type scale strategy")
+            .setDesc(
+                "How heading sizes (h1–h4) are calculated relative to body text.",
+            )
+            .addDropdown((cb) => {
+                cb.addOption("classic", "Classic Modular Scale")
+                    .addOption("dual", "Dual-Ratio (Utopia)")
+                    .addOption("material", "Material Design 3")
+                    .setValue(this.newSettings.typeScaleStrategy)
+                    .onChange((value) => {
+                        if (
+                            value === "classic" ||
+                            value === "dual" ||
+                            value === "material"
+                        ) {
+                            this.newSettings.typeScaleStrategy = value;
+                        }
+                    });
+            });
+
+        new Setting(containerEl)
+            .setName("Type scale ratio")
+            .setDesc(
+                "Classic mode: single ratio (1.0–1.8). Presets: Major Third 1.25, Perfect Fourth 1.333, Perfect Fifth 1.5.",
+            )
+            .addSlider((slider) =>
+                slider
+                    .setLimits(1.0, 1.8, 0.01)
+                    .setValue(this.newSettings.typeScaleRatio)
+                    .setDynamicTooltip()
+                    .onChange((value) => {
+                        this.newSettings.typeScaleRatio = value;
+                    }),
+            );
+
+        new Setting(containerEl)
+            .setName("Dual-ratio: tight")
+            .setDesc("Tight ratio for dual-ratio mode (default: 1.2).")
+            .addSlider((slider) =>
+                slider
+                    .setLimits(1.0, 1.5, 0.01)
+                    .setValue(this.newSettings.typeScaleTightRatio)
+                    .setDynamicTooltip()
+                    .onChange((value) => {
+                        this.newSettings.typeScaleTightRatio = value;
+                    }),
+            );
+
+        new Setting(containerEl)
+            .setName("Dual-ratio: open")
+            .setDesc("Open ratio for dual-ratio mode (default: 1.414).")
+            .addSlider((slider) =>
+                slider
+                    .setLimits(1.0, 2.0, 0.01)
+                    .setValue(this.newSettings.typeScaleOpenRatio)
+                    .setDynamicTooltip()
+                    .onChange((value) => {
+                        this.newSettings.typeScaleOpenRatio = value;
+                    }),
+            );
+
+        new Setting(containerEl)
+            .setName("Font family")
+            .setDesc("Default font family for slide content.")
+            .addDropdown((cb) => {
+                cb.addOption("system", "System")
+                    .addOption("serif", "Serif")
+                    .addOption("mono", "Monospace")
+                    .addOption("inter", "Inter")
+                    .setValue(this.newSettings.fontFamily)
+                    .onChange((value) => {
+                        this.newSettings.fontFamily = value;
+                    });
+            });
+
+        // ── Banner settings ───────────────────────────────────────────
+
+        new Setting(containerEl).setName("Banner").setHeading();
+
+        new Setting(containerEl)
+            .setName("Show banner")
+            .setDesc(
+                "Display a configurable banner bar at the top of all slides.",
+            )
+            .addToggle((value) =>
+                value
+                    .setValue(this.newSettings.bannerEnabled)
+                    .onChange((value) => {
+                        this.newSettings.bannerEnabled = value;
+                    }),
+            );
+
+        new Setting(containerEl)
+            .setName("Banner text")
+            .setDesc("Text content displayed in the banner.")
+            .addText((text) =>
+                text
+                    .setPlaceholder("Enter banner text…")
+                    .setValue(this.newSettings.bannerText)
+                    .onChange((value) => {
+                        this.newSettings.bannerText = value;
+                    }),
+            );
+
+        new Setting(containerEl).setName("Banner font").addDropdown((cb) => {
+            cb.addOption(
+                '-apple-system, "Segoe UI", system-ui, sans-serif',
+                "System",
+            )
+                .addOption('Georgia, "Noto Serif SC", serif', "Serif")
+                .addOption('"SF Mono", Menlo, monospace', "Mono")
+                .addOption("Inter, -apple-system, sans-serif", "Inter")
+                .setValue(this.newSettings.bannerFontFamily)
+                .onChange((value) => {
+                    this.newSettings.bannerFontFamily = value;
+                });
+        });
+
+        new Setting(containerEl)
+            .setName("Banner font size")
+            .setDesc("Font size in pixels (10–32).")
+            .addSlider((slider) =>
+                slider
+                    .setLimits(10, 32, 1)
+                    .setValue(this.newSettings.bannerFontSize)
+                    .setDynamicTooltip()
+                    .onChange((value) => {
+                        this.newSettings.bannerFontSize = value;
+                    }),
+            );
+
+        new Setting(containerEl)
+            .setName("Banner text alignment")
+            .addDropdown((cb) => {
+                cb.addOption("left", "Left")
+                    .addOption("center", "Center")
+                    .addOption("right", "Right")
+                    .setValue(this.newSettings.bannerAlign)
+                    .onChange((value) => {
+                        if (
+                            value === "left" ||
+                            value === "center" ||
+                            value === "right"
+                        ) {
+                            this.newSettings.bannerAlign = value;
+                        }
+                    });
+            });
+
+        new Setting(containerEl)
+            .setName("Banner background color")
+            .addColorPicker((color) =>
+                color
+                    .setValue(this.newSettings.bannerBgColor)
+                    .onChange((value) => {
+                        this.newSettings.bannerBgColor = value;
+                    }),
+            );
+
+        new Setting(containerEl)
+            .setName("Banner text color")
+            .addColorPicker((color) =>
+                color
+                    .setValue(this.newSettings.bannerTextColor)
+                    .onChange((value) => {
+                        this.newSettings.bannerTextColor = value;
+                    }),
+            );
+
+        new Setting(containerEl)
+            .setName("Show date/time")
+            .setDesc(
+                "Display current date/time on the right side of the banner.",
+            )
+            .addToggle((value) =>
+                value
+                    .setValue(this.newSettings.bannerShowDatetime)
+                    .onChange((value) => {
+                        this.newSettings.bannerShowDatetime = value;
+                    }),
+            );
+
+        new Setting(containerEl)
+            .setName("Date/time format")
+            .setDesc("Format string: YYYY, MM, DD, HH, mm.")
+            .addText((text) =>
+                text
+                    .setPlaceholder("YYYY-MM-DD HH:mm")
+                    .setValue(this.newSettings.bannerDatetimeFormat)
+                    .onChange((value) => {
+                        this.newSettings.bannerDatetimeFormat = value;
+                    }),
+            );
     }
 }
