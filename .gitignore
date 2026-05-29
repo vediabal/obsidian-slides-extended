@@ -28,3 +28,8 @@ slides-extended/
 slides-extended.zip
 settings.local.json
 export
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+*.db
+.beads-credential-key

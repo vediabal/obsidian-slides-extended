@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "obsidian_slides_extended",
+  "project_id": "58b012b3-6f82-448b-b11b-3e5e346b85cd"
+}
