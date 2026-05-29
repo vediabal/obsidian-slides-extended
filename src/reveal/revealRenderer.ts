@@ -193,7 +193,11 @@ export class RevealRenderer {
             enablePointer,
             enableTimeBar,
             enableSmartEnhancements: enableSmartEnhancements !== false,
-            smartConfigStr: JSON.stringify(smartConfig),
+            smartScriptBlock:
+                enableSmartEnhancements !== false
+                    ? `<script src="${base}plugin/smart-enhancements/smart-enhancements.js"></script>\n` +
+                      `<script>window.__SE_SMART_CONFIG__ = ${JSON.stringify(smartConfig)};</script>`
+                    : "",
             isKaTeX,
             isMathJax,
             revealOptionsStr: JSON.stringify(revealOptions),

@@ -171,13 +171,12 @@
 .reveal .slides h4 { font-size: var(--h4-size); }
 
 // ── T3.1: Smart scroll/zoom per-slide ─────────────────────────────────
-// reveal.js renders sections as position:absolute with no explicit height
-// (height = content height). The .slides container is fixed at canvas size
-// (e.g. 700px) and uses transform:scale() to fit the viewport.
-// For scrollable slides, the JS plugin sets an explicit height equal to the
-// canvas height via inline style, making the section a fixed-size scrollable box.
+// reveal.js overwrites inline styles on sections during layout().
+// We use CSS !important on the class to enforce scroll behavior,
+// and the JS plugin sets a CSS custom property for the canvas height.
 .reveal .slides section.se-scroll {
     overflow-y: auto !important;
+    height: var(--se-canvas-height, 700px) !important;
 }
 
 // ── T3.2: Banner ──────────────────────────────────────────────────────

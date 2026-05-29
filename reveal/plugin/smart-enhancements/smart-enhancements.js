@@ -1,53 +1,53 @@
 /**
- * slides-extended-smart.js — Post-processing reveal.js plugin
+ * slides-extended-smart.js — Post-processing enhancements for reveal.js
  *
  * Ported from openmd worktree-exp+slides experiment.
- * Handles: language labels, callouts, breadcrumbs, TOC, smart scroll/zoom, banner.
+ * Handles: language labels, callouts, breadcrumbs, TOC, smart scroll/zoom, banner, preview.
  *
- * Registered as a reveal.js plugin via Reveal.initialize({ plugins: [...] }).
- * Runs after reveal.js finishes its own rendering.
+ * Self-executing: waits for Reveal.initialize() to complete, then applies enhancements.
+ * Does NOT need to be listed in the reveal.js plugins array.
  */
 
-const SmartEnhancements = {
-    id: "smart-enhancements",
+(function () {
+    "use strict";
 
-    init: function (reveal) {
-        // Read configuration from the global __SE_SMART_CONFIG__ object
-        // (injected by the template or settings).
-        const cfg = window.__SE_SMART_CONFIG__ || {};
+    function boot() {
+        var cfg = window.__SE_SMART_CONFIG__ || {};
 
-        reveal.on("ready", function () {
-            applyTypeScale(cfg);
-            applyFont(cfg);
-            processLanguageLabels();
-            processCallouts();
-            processBreadcrumbs(reveal);
-            initTOC(reveal);
-            initPreview(reveal);
-            if (cfg.banner && cfg.banner.enabled) {
-                renderBanner(cfg.banner);
+        // Wait for Reveal to exist and be initialized
+        function waitForReveal() {
+            if (typeof Reveal === "undefined" || !Reveal.isReady || !Reveal.isReady()) {
+                setTimeout(waitForReveal, 50);
+                return;
             }
-            if (cfg.listBlock) {
-                reveal.getRevealElement().classList.add("list-block");
-            }
-            // Apply smart scroll/zoom after a short delay to let reveal.js
-            // finish its post-ready layout pass.
-            if (cfg.smartScroll !== false) {
-                setTimeout(function () {
-                    applySmartScrollZoom(reveal, cfg);
-                }, 100);
-            }
-        });
+            onRevealReady(Reveal, cfg);
+        }
+        waitForReveal();
+    }
 
-        // Re-apply on slide change (reveal.js re-layouts on navigation)
-        reveal.on("slidechanged", function () {
-            if (cfg.smartScroll !== false) {
+    function onRevealReady(reveal, cfg) {
+        applyTypeScale(cfg);
+        applyFont(cfg);
+        processLanguageLabels();
+        processCallouts();
+        processBreadcrumbs(reveal);
+        initTOC(reveal);
+        initPreview(reveal);
+        if (cfg.banner && cfg.banner.enabled) {
+            renderBanner(cfg.banner);
+        }
+        if (cfg.listBlock) {
+            reveal.getRevealElement().classList.add("list-block");
+        }
+        // Apply smart scroll/zoom after reveal.js layout settles
+        if (cfg.smartScroll !== false) {
+            setTimeout(function () {
                 applySmartScrollZoom(reveal, cfg);
-            }
-        });
+            }, 300);
+        }
 
-        // Re-apply smart scroll/zoom on window resize
-        let resizeTimer;
+        // Re-apply on resize
+        var resizeTimer;
         window.addEventListener("resize", function () {
             clearTimeout(resizeTimer);
             resizeTimer = setTimeout(function () {
@@ -56,8 +56,7 @@ const SmartEnhancements = {
                 }
             }, 200);
         });
-    },
-};
+    }
 
 // ── T2.1: Modular Type Scale ──────────────────────────────────────────
 
@@ -321,17 +320,19 @@ function applySmartScrollZoom(reveal, cfg) {
     var defaultScale = (cfg && cfg.defaultScale) || 1.0;
     var canvasHeight = reveal.getConfig().height || 700;
 
+    // Set CSS custom property so the .se-scroll class knows the canvas height
+    var slidesEl = document.querySelector(".reveal .slides");
+    if (slidesEl) {
+        slidesEl.style.setProperty("--se-canvas-height", canvasHeight + "px");
+    }
+
     var slides = reveal.getSlides();
     slides.forEach(function (slide) {
         var sc = slide;
 
-        // Clean up previous state first so measurements are clean
+        // Clean up previous state
         slide.classList.remove("se-scroll");
         sc.style.zoom = "";
-        sc.style.height = "";
-        sc.style.display = "";
-        sc.style.flexDirection = "";
-        sc.style.justifyContent = "";
 
         var naturalH = measureNatural(slide, canvasHeight);
         var ratio = naturalH / canvasHeight;
@@ -353,15 +354,9 @@ function applySmartScrollZoom(reveal, cfg) {
             // Slight overflow — scale down
             sc.style.zoom = fit * defaultScale;
         } else {
-            // Too much content — enable scrolling.
-            // Set explicit height = canvas height so the section becomes a
-            // fixed-size scrollable box (reveal.js sections have no height by default).
+            // Too much content — add se-scroll class.
+            // CSS handles height + overflow via !important (beats reveal.js inline styles).
             slide.classList.add("se-scroll");
-            slide.style.height = canvasHeight + "px";
-            // Top-align content instead of centered for scrollable slides
-            slide.style.display = "flex";
-            slide.style.flexDirection = "column";
-            slide.style.justifyContent = "flex-start";
             if (defaultScale !== 1.0) {
                 sc.style.zoom = defaultScale;
             }
@@ -751,3 +746,7 @@ function renderPreviewSource() {
     body.appendChild(pre);
     previewState.overlay.appendChild(body);
 }
+
+    // Start
+    boot();
+})();
