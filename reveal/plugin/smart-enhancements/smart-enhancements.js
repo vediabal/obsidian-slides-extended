@@ -24,14 +24,25 @@ const SmartEnhancements = {
             processBreadcrumbs(reveal);
             initTOC(reveal);
             initPreview(reveal);
-            if (cfg.smartScroll !== false) {
-                applySmartScrollZoom(reveal, cfg);
-            }
             if (cfg.banner && cfg.banner.enabled) {
                 renderBanner(cfg.banner);
             }
             if (cfg.listBlock) {
                 reveal.getRevealElement().classList.add("list-block");
+            }
+            // Apply smart scroll/zoom after a short delay to let reveal.js
+            // finish its post-ready layout pass.
+            if (cfg.smartScroll !== false) {
+                setTimeout(function () {
+                    applySmartScrollZoom(reveal, cfg);
+                }, 100);
+            }
+        });
+
+        // Re-apply on slide change (reveal.js re-layouts on navigation)
+        reveal.on("slidechanged", function () {
+            if (cfg.smartScroll !== false) {
+                applySmartScrollZoom(reveal, cfg);
             }
         });
 
@@ -312,10 +323,17 @@ function applySmartScrollZoom(reveal, cfg) {
 
     var slides = reveal.getSlides();
     slides.forEach(function (slide) {
-        // Find the content wrapper (reveal.js uses section directly)
         var sc = slide;
 
-        var naturalH = measureNatural(slide, sc);
+        // Clean up previous state first so measurements are clean
+        slide.classList.remove("se-scroll");
+        sc.style.zoom = "";
+        sc.style.height = "";
+        sc.style.display = "";
+        sc.style.flexDirection = "";
+        sc.style.justifyContent = "";
+
+        var naturalH = measureNatural(slide, canvasHeight);
         var ratio = naturalH / canvasHeight;
         var hasTall = !!(
             sc.querySelector("pre") ||
@@ -326,11 +344,6 @@ function applySmartScrollZoom(reveal, cfg) {
         var minScale = hasTall ? MIN_SCALE_TALL : MIN_SCALE_PLAIN;
         var fit = 1 / ratio;
 
-        // Clean up previous state
-        slide.classList.remove("se-scroll");
-        sc.style.zoom = "";
-        sc.style.overflowY = "";
-
         if (ratio <= 1.0) {
             // Content fits
             if (defaultScale !== 1.0) {
@@ -340,9 +353,15 @@ function applySmartScrollZoom(reveal, cfg) {
             // Slight overflow — scale down
             sc.style.zoom = fit * defaultScale;
         } else {
-            // Too much content — enable scrolling
+            // Too much content — enable scrolling.
+            // Set explicit height = canvas height so the section becomes a
+            // fixed-size scrollable box (reveal.js sections have no height by default).
             slide.classList.add("se-scroll");
-            sc.style.overflowY = "auto";
+            slide.style.height = canvasHeight + "px";
+            // Top-align content instead of centered for scrollable slides
+            slide.style.display = "flex";
+            slide.style.flexDirection = "column";
+            slide.style.justifyContent = "flex-start";
             if (defaultScale !== 1.0) {
                 sc.style.zoom = defaultScale;
             }
@@ -350,9 +369,13 @@ function applySmartScrollZoom(reveal, cfg) {
     });
 }
 
-function measureNatural(section, sc) {
-    var prevZoom = sc.style.zoom;
-    sc.style.zoom = "";
+function measureNatural(section, canvasHeight) {
+    // reveal.js constrains sections with inline style height/top and absolute positioning.
+    // We must temporarily remove these constraints to measure true content height.
+    var prevHeight = section.style.height;
+    var prevMaxHeight = section.style.maxHeight;
+    var prevOverflow = section.style.overflow;
+    var prevTop = section.style.top;
 
     var hidden = getComputedStyle(section).display === "none";
     var prevVis, prevPos, prevDisp;
@@ -365,14 +388,25 @@ function measureNatural(section, sc) {
         section.style.display = "block";
     }
 
-    var h = sc.scrollHeight;
+    // Remove reveal.js height constraints to measure natural content height
+    section.style.height = "auto";
+    section.style.maxHeight = "none";
+    section.style.overflow = "visible";
+    section.style.top = "0";
+
+    var h = section.scrollHeight;
+
+    // Restore
+    section.style.height = prevHeight;
+    section.style.maxHeight = prevMaxHeight;
+    section.style.overflow = prevOverflow;
+    section.style.top = prevTop;
 
     if (hidden) {
         section.style.visibility = prevVis;
         section.style.position = prevPos;
         section.style.display = prevDisp;
     }
-    sc.style.zoom = prevZoom;
     return h;
 }
 
