@@ -968,7 +968,7 @@ function initControlBar(reveal, cfg) {
         '<h3>Keyboard Shortcuts</h3>' +
         '<div class="hk"><span>Scale up / down</span><kbd>+</kbd> <kbd>−</kbd></div>' +
         '<div class="hk"><span>Reset scale</span><kbd>0</kbd></div>' +
-        '<div class="hk"><span>Scroll ↔ Zoom toggle</span><kbd>s</kbd></div>' +
+        '<div class="hk"><span>Scroll ↔ Zoom toggle</span><kbd>m</kbd></div>' +
         '<div class="hk"><span>Table of contents</span><kbd>t</kbd></div>' +
         '<div class="hk"><span>Preview views</span><kbd>v</kbd></div>' +
         '<div class="hk"><span>Help</span><kbd>h</kbd></div>' +
@@ -1012,7 +1012,7 @@ function initControlBar(reveal, cfg) {
         if (document.getElementById("se-toc-overlay") &&
             document.getElementById("se-toc-overlay").classList.contains("open")) return;
 
-        if (e.key === "s" && !e.ctrlKey && !e.metaKey) {
+        if (e.key === "m" && !e.ctrlKey && !e.metaKey) {
             e.preventDefault();
             toggleSlideMode(reveal, cfg);
         }
@@ -1415,7 +1415,7 @@ function syncControlBar(reveal) {
     var scaleIco = document.getElementById("se-scale-ico");
     var alignIco = document.getElementById("se-align-ico");
     if (modeIco) modeIco.textContent = isScrolling ? "↕️" : "🔍";
-    if (modeBtn) modeBtn.title = isScrolling ? "Mode: Scroll (s)" : "Mode: Zoom (s)";
+    if (modeBtn) modeBtn.title = isScrolling ? "Mode: Scroll (m)" : "Mode: Zoom (m)";
     if (scaleIco) scaleIco.textContent = isScrolling ? "↕️" : "🔍";
     var z = parseFloat(slide.style.zoom);
     if (sVal) sVal.textContent = z ? Math.round(z * 100) + "%" : "auto";
