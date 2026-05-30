@@ -39,7 +39,7 @@ export class SlidesExtendedDistribution {
 
     async update() {
         const version = this.plugin.manifest.version;
-        const downloadUrl = `https://github.com/ebullient/obsidian-slides-extended/releases/download/${version}/slides-extended.zip`;
+        const downloadUrl = `https://github.com/vediabal/obsidian-slides-extended/releases/download/${version}/slides-extended.zip`;
 
         // Backup existing dist directory before attempting update
         // Use dist-backup instead of dist/.backup to avoid issues with trailing slashes
