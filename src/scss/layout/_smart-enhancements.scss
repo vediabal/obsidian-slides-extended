@@ -177,6 +177,14 @@
 .reveal .slides section.se-scroll {
     overflow-y: auto !important;
     height: var(--se-canvas-height, 700px) !important;
+    top: 0 !important;
+
+    // reveal.js wraps content in a div with justify-content:center (inline style).
+    // For scrollable slides, content must start at top so the user can scroll
+    // from the beginning — override the inner wrapper's centering.
+    > div {
+        justify-content: flex-start !important;
+    }
 }
 
 // ── T3.2: Banner ──────────────────────────────────────────────────────
