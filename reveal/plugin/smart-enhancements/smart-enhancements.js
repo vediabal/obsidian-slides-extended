@@ -33,6 +33,7 @@
         processBreadcrumbs(reveal);
         initTOC(reveal);
         initPreview(reveal);
+        initControlBar(reveal, cfg);
         if (cfg.banner && cfg.banner.enabled) {
             renderBanner(cfg.banner);
         }
@@ -43,6 +44,7 @@
         if (cfg.smartScroll !== false) {
             setTimeout(function () {
                 applySmartScrollZoom(reveal, cfg);
+                syncControlBar(reveal);
             }, 300);
         }
 
@@ -749,4 +751,191 @@ function renderPreviewSource() {
 
     // Start
     boot();
+
+// ── Control Bar ───────────────────────────────────────────────────────
+
+var ctlState = { reveal: null, cfg: null };
+
+function initControlBar(reveal, cfg) {
+    ctlState.reveal = reveal;
+    ctlState.cfg = cfg;
+
+    // Inject CSS
+    var style = document.createElement("style");
+    style.textContent =
+        "#se-ctl{position:fixed;bottom:60px;left:16px;z-index:100;display:flex;gap:4px;opacity:.7;transition:opacity .2s}" +
+        "#se-ctl:hover{opacity:1}" +
+        "#se-ctl .se-btn{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;background:rgba(28,32,40,.85);color:#e6e9ef;border:1px solid rgba(255,255,255,.1);border-radius:8px;cursor:pointer;user-select:none;backdrop-filter:blur(6px);font-size:17px;transition:border-color .15s,background .15s}" +
+        "#se-ctl .se-btn:hover{border-color:rgba(90,169,255,.7);background:rgba(28,32,40,.95)}" +
+        "#se-ctl .se-btn.active{border-color:rgba(90,169,255,.7);background:rgba(90,169,255,.2)}" +
+        "#se-ctl .se-btn.muted{opacity:.4}" +
+        "#se-ctl .se-label{color:#9aa3b2;font:11px/36px -apple-system,sans-serif;padding:0 4px;white-space:nowrap}";
+    document.head.appendChild(style);
+
+    // Build control bar
+    var bar = document.createElement("div");
+    bar.id = "se-ctl";
+
+    // Mode toggle (scroll ↔ zoom)
+    var modeBtn = document.createElement("div");
+    modeBtn.className = "se-btn";
+    modeBtn.id = "se-mode-btn";
+    modeBtn.title = "Toggle scroll/zoom for this slide (s)";
+    modeBtn.textContent = "🔍";
+    modeBtn.onclick = function () { toggleSlideMode(reveal, cfg); };
+    bar.appendChild(modeBtn);
+
+    // Scale minus
+    var minusBtn = document.createElement("div");
+    minusBtn.className = "se-btn";
+    minusBtn.title = "Decrease scale (−)";
+    minusBtn.textContent = "−";
+    minusBtn.onclick = function () { adjustScale(reveal, cfg, -0.05); };
+    bar.appendChild(minusBtn);
+
+    // Scale label
+    var scaleLabel = document.createElement("div");
+    scaleLabel.className = "se-label";
+    scaleLabel.id = "se-scale-label";
+    scaleLabel.textContent = "auto";
+    bar.appendChild(scaleLabel);
+
+    // Scale plus
+    var plusBtn = document.createElement("div");
+    plusBtn.className = "se-btn";
+    plusBtn.title = "Increase scale (+)";
+    plusBtn.textContent = "+";
+    plusBtn.onclick = function () { adjustScale(reveal, cfg, 0.05); };
+    bar.appendChild(plusBtn);
+
+    // Scale reset
+    var resetBtn = document.createElement("div");
+    resetBtn.className = "se-btn";
+    resetBtn.title = "Reset scale (0)";
+    resetBtn.textContent = "⟲";
+    resetBtn.onclick = function () { resetScale(reveal, cfg); };
+    bar.appendChild(resetBtn);
+
+    // TOC button
+    var tocBtn = document.createElement("div");
+    tocBtn.className = "se-btn";
+    tocBtn.title = "Table of Contents (t)";
+    tocBtn.textContent = "📑";
+    tocBtn.onclick = function () { toggleTOC(reveal); };
+    bar.appendChild(tocBtn);
+
+    // Preview button
+    var prevBtn = document.createElement("div");
+    prevBtn.className = "se-btn";
+    prevBtn.title = "Preview views (v)";
+    prevBtn.textContent = "📐";
+    prevBtn.onclick = function () { cyclePreview(); };
+    bar.appendChild(prevBtn);
+
+    document.body.appendChild(bar);
+
+    // Sync on slide change
+    reveal.on("slidechanged", function () { syncControlBar(reveal); });
+
+    // Keyboard shortcuts
+    document.addEventListener("keydown", function (e) {
+        if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+        if (previewState.current !== "off") return; // preview handles its own keys
+        if (document.getElementById("se-toc-overlay") &&
+            document.getElementById("se-toc-overlay").classList.contains("open")) return;
+
+        if (e.key === "s" && !e.ctrlKey && !e.metaKey) {
+            e.preventDefault();
+            toggleSlideMode(reveal, cfg);
+        }
+        if ((e.key === "=" || e.key === "+") && !e.ctrlKey && !e.metaKey) {
+            e.preventDefault();
+            adjustScale(reveal, cfg, 0.05);
+        }
+        if (e.key === "-" && !e.ctrlKey && !e.metaKey) {
+            e.preventDefault();
+            adjustScale(reveal, cfg, -0.05);
+        }
+        if (e.key === "0" && !e.ctrlKey && !e.metaKey) {
+            e.preventDefault();
+            resetScale(reveal, cfg);
+        }
+    });
+}
+
+// Per-slide manual overrides
+var slideOverrides = {}; // key → { mode: 'scroll'|'zoom'|null, scale: number|null }
+
+function slideKey(reveal) {
+    var idx = reveal.getIndices();
+    return idx.h + "." + (idx.v || 0);
+}
+
+function getOverride(reveal) {
+    return slideOverrides[slideKey(reveal)] || {};
+}
+
+function toggleSlideMode(reveal, cfg) {
+    var key = slideKey(reveal);
+    var cur = slideOverrides[key] || {};
+    var slide = reveal.getCurrentSlide();
+    var isScrolling = slide.classList.contains("se-scroll");
+
+    if (isScrolling) {
+        // Switch to zoom
+        cur.mode = "zoom";
+        slide.classList.remove("se-scroll");
+        // Apply zoom to fit
+        var canvasH = reveal.getConfig().height || 700;
+        var naturalH = measureNatural(slide, canvasH);
+        var fit = canvasH / naturalH;
+        slide.style.zoom = fit;
+        slide.querySelector(":scope > div").style.setProperty("justify-content", "center", "important");
+    } else {
+        // Switch to scroll
+        cur.mode = "scroll";
+        slide.classList.add("se-scroll");
+        slide.style.zoom = "";
+        slide.querySelector(":scope > div").style.setProperty("justify-content", "flex-start", "important");
+    }
+    slideOverrides[key] = cur;
+    syncControlBar(reveal);
+}
+
+function adjustScale(reveal, cfg, delta) {
+    var slide = reveal.getCurrentSlide();
+    var curZoom = parseFloat(slide.style.zoom) || 1.0;
+    var newZoom = Math.max(0.3, Math.min(2.0, curZoom + delta));
+    slide.style.zoom = newZoom;
+
+    var key = slideKey(reveal);
+    slideOverrides[key] = slideOverrides[key] || {};
+    slideOverrides[key].scale = newZoom;
+    syncControlBar(reveal);
+}
+
+function resetScale(reveal, cfg) {
+    var key = slideKey(reveal);
+    delete slideOverrides[key];
+    // Re-run auto decision for this slide
+    applySmartScrollZoom(reveal, cfg);
+    syncControlBar(reveal);
+}
+
+function syncControlBar(reveal) {
+    var slide = reveal.getCurrentSlide();
+    if (!slide) return;
+    var isScrolling = slide.classList.contains("se-scroll");
+    var modeBtn = document.getElementById("se-mode-btn");
+    var scaleLabel = document.getElementById("se-scale-label");
+    if (modeBtn) {
+        modeBtn.textContent = isScrolling ? "↕️" : "🔍";
+        modeBtn.title = isScrolling ? "Mode: Scroll (s)" : "Mode: Zoom (s)";
+    }
+    if (scaleLabel) {
+        var z = parseFloat(slide.style.zoom);
+        scaleLabel.textContent = z ? Math.round(z * 100) + "%" : "auto";
+    }
+}
+
 })();
