@@ -756,67 +756,160 @@ function renderPreviewSource() {
 
 var ctlState = { reveal: null, cfg: null };
 
+// ── Runtime state for the more-menu toggles ──────────────────────────
+var rtState = {
+    transition: "fade",
+    showProgress: true,
+    mouseWheel: false,
+    listBlock: false,
+    defaultScale: 1.0
+};
+var LS_KEY = "se-smart-v1";
+function loadRtState() {
+    try { var s = JSON.parse(localStorage.getItem(LS_KEY) || "{}"); Object.assign(rtState, s); } catch (e) { /* ignore */ }
+}
+function persistRtState() {
+    localStorage.setItem(LS_KEY, JSON.stringify(rtState));
+}
+
+// Theme / font constants for the more-menu
+var SLIDE_THEMES = [
+    { id: "white", label: "☀️ White" }, { id: "black", label: "🌑 Black" },
+    { id: "moon", label: "🌙 Moon" }, { id: "solarized", label: "🌿 Solarized" }
+];
+var FONTS = [
+    { id: "system", label: "System", value: '-apple-system,"PingFang SC","Segoe UI",system-ui,sans-serif' },
+    { id: "serif", label: "Serif", value: 'Georgia,"Noto Serif SC","Source Serif Pro",serif' },
+    { id: "mono", label: "Mono", value: '"SF Mono",Menlo,"Fira Code",monospace' },
+    { id: "inter", label: "Inter", value: "Inter,-apple-system,sans-serif" }
+];
+var TYPE_SCALES = [
+    { id: "major-third", label: "Major Third (1.250)", ratio: 1.250 },
+    { id: "perfect-fourth", label: "Perfect Fourth (1.333)", ratio: 1.333 },
+    { id: "perfect-fifth", label: "Perfect Fifth (1.500)", ratio: 1.500 }
+];
+
+function closeAllPops(except) {
+    ["se-scale-pop", "se-more-menu"].forEach(function (id) {
+        if (id !== except) {
+            var el = document.getElementById(id);
+            if (el) el.classList.remove("open");
+        }
+    });
+}
+
 function initControlBar(reveal, cfg) {
     ctlState.reveal = reveal;
     ctlState.cfg = cfg;
+    loadRtState();
+
+    // Apply persisted runtime state
+    if (rtState.transition) reveal.configure({ transition: rtState.transition });
+    reveal.configure({ progress: rtState.showProgress !== false });
+    reveal.configure({ mouseWheel: !!rtState.mouseWheel });
+    if (rtState.listBlock) document.querySelector(".reveal")?.classList.add("list-block");
+    if (rtState.fontId) {
+        var f = FONTS.find(function (x) { return x.id === rtState.fontId; });
+        if (f) {
+            var sl = document.querySelector(".reveal .slides");
+            if (sl) sl.style.setProperty("--font-family", f.value);
+        }
+    }
 
     // Inject CSS
     var style = document.createElement("style");
     style.textContent =
-        "#se-ctl{position:fixed;bottom:60px;left:16px;z-index:100;display:flex;gap:4px;opacity:.7;transition:opacity .2s}" +
+        /* control bar */
+        "#se-ctl{position:fixed;bottom:12px;left:12px;z-index:100;display:flex;gap:6px;align-items:flex-end;font:13px/1.2 -apple-system,sans-serif;opacity:.35;transition:opacity .2s}" +
         "#se-ctl:hover{opacity:1}" +
         "#se-ctl .se-btn{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;background:rgba(28,32,40,.85);color:#e6e9ef;border:1px solid rgba(255,255,255,.1);border-radius:8px;cursor:pointer;user-select:none;backdrop-filter:blur(6px);font-size:17px;transition:border-color .15s,background .15s}" +
         "#se-ctl .se-btn:hover{border-color:rgba(90,169,255,.7);background:rgba(28,32,40,.95)}" +
         "#se-ctl .se-btn.active{border-color:rgba(90,169,255,.7);background:rgba(90,169,255,.2)}" +
         "#se-ctl .se-btn.muted{opacity:.4}" +
-        "#se-ctl .se-label{color:#9aa3b2;font:11px/36px -apple-system,sans-serif;padding:0 4px;white-space:nowrap}";
+        "#se-ctl .se-label{color:#9aa3b2;font:11px/36px -apple-system,sans-serif;padding:0 4px;white-space:nowrap}" +
+        /* popups shared */
+        "#se-ctl .se-pop{position:absolute;bottom:calc(100% + 6px);left:0;display:none;background:rgba(28,32,40,.92);border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:6px;backdrop-filter:blur(6px)}" +
+        "#se-ctl .se-pop.open{display:flex}" +
+        /* scale popup */
+        "#se-scale-pop{flex-direction:row;align-items:center;gap:4px}" +
+        "#se-scale-pop button{width:28px;height:28px;border:none;background:rgba(255,255,255,.06);color:#e6e9ef;font-size:14px;cursor:pointer;border-radius:5px}" +
+        "#se-scale-pop button:hover{background:rgba(255,255,255,.12)}" +
+        "#se-scale-pop .val{min-width:44px;text-align:center;color:#9aa3b2;font-size:12px}" +
+        "#se-scale-pop .sep{width:1px;height:20px;background:rgba(255,255,255,.15);margin:0 2px}" +
+        /* more-menu */
+        "#se-more-menu{flex-direction:column;gap:2px;min-width:200px;max-height:70vh;overflow-y:auto}" +
+        "#se-more-menu .menu-section{margin-bottom:4px}#se-more-menu .menu-section:last-child{margin-bottom:0}" +
+        "#se-more-menu .menu-label{font-size:10px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.06em;padding:2px 8px;margin-bottom:2px}" +
+        "#se-more-menu .menu-item{display:flex;align-items:center;justify-content:space-between;border:none;background:transparent;color:#e6e9ef;font-size:12px;cursor:pointer;border-radius:5px;padding:5px 8px;text-align:left;white-space:nowrap;width:100%}" +
+        "#se-more-menu .menu-item:hover{background:rgba(255,255,255,.1)}" +
+        "#se-more-menu .menu-item.active{background:rgba(90,169,255,.25);color:#5aa9ff}" +
+        "#se-more-menu .se-sep{height:1px;background:rgba(255,255,255,.1);margin:4px 0}" +
+        "#se-more-menu .scale-row{display:flex;align-items:center;gap:4px;padding:4px 8px}" +
+        "#se-more-menu .scale-row button{width:28px;height:26px;border:none;background:rgba(255,255,255,.06);color:#e6e9ef;font-size:14px;cursor:pointer;border-radius:5px}" +
+        "#se-more-menu .scale-row button:hover{background:rgba(255,255,255,.12)}" +
+        "#se-more-menu .scale-row .val{min-width:44px;text-align:center;color:#9aa3b2;font-size:12px}" +
+        "#se-more-menu .slider-row{display:flex;align-items:center;gap:6px;padding:4px 8px}" +
+        "#se-more-menu .slider-row input[type=range]{flex:1;height:4px;accent-color:#5aa9ff;cursor:pointer}" +
+        "#se-more-menu .slider-row .val{min-width:36px;text-align:right;color:#9aa3b2;font-size:11px}";
     document.head.appendChild(style);
 
-    // Build control bar
+    // ── Build control bar ─────────────────────────────────────────────
     var bar = document.createElement("div");
     bar.id = "se-ctl";
 
-    // Mode toggle (scroll ↔ zoom)
-    var modeBtn = document.createElement("div");
-    modeBtn.className = "se-btn";
-    modeBtn.id = "se-mode-btn";
-    modeBtn.title = "Toggle scroll/zoom for this slide (s)";
-    modeBtn.textContent = "🔍";
-    modeBtn.onclick = function () { toggleSlideMode(reveal, cfg); };
-    bar.appendChild(modeBtn);
+    // ── 1. Scale button + popup ───────────────────────────────────────
+    var scaleWrap = document.createElement("div");
+    scaleWrap.style.position = "relative";
 
-    // Scale minus
-    var minusBtn = document.createElement("div");
-    minusBtn.className = "se-btn";
-    minusBtn.title = "Decrease scale (−)";
-    minusBtn.textContent = "−";
-    minusBtn.onclick = function () { adjustScale(reveal, cfg, -0.05); };
-    bar.appendChild(minusBtn);
+    var scaleBtn = document.createElement("div");
+    scaleBtn.className = "se-btn";
+    scaleBtn.id = "se-scale-btn";
+    scaleBtn.title = "View settings (+ / −)";
+    scaleBtn.innerHTML = "<span id='se-scale-ico'>🔍</span>";
+    scaleBtn.onclick = function (e) {
+        e.stopPropagation();
+        document.getElementById("se-scale-pop").classList.toggle("open");
+        closeAllPops("se-scale-pop");
+    };
+    scaleWrap.appendChild(scaleBtn);
 
-    // Scale label
-    var scaleLabel = document.createElement("div");
-    scaleLabel.className = "se-label";
-    scaleLabel.id = "se-scale-label";
-    scaleLabel.textContent = "auto";
-    bar.appendChild(scaleLabel);
+    // Scale popup
+    var scalePop = document.createElement("div");
+    scalePop.className = "se-pop";
+    scalePop.id = "se-scale-pop";
+    scalePop.innerHTML =
+        '<button id="se-s-minus" title="Decrease scale">−</button>' +
+        '<span class="val" id="se-s-val">auto</span>' +
+        '<button id="se-s-plus" title="Increase scale">+</button>' +
+        '<button id="se-s-reset" title="Reset scale">⟲</button>' +
+        '<span class="sep"></span>' +
+        '<button id="se-mode-btn" title="Scroll ↔ Zoom"><span id="se-mode-ico">🔍</span></button>';
+    scaleWrap.appendChild(scalePop);
+    bar.appendChild(scaleWrap);
 
-    // Scale plus
-    var plusBtn = document.createElement("div");
-    plusBtn.className = "se-btn";
-    plusBtn.title = "Increase scale (+)";
-    plusBtn.textContent = "+";
-    plusBtn.onclick = function () { adjustScale(reveal, cfg, 0.05); };
-    bar.appendChild(plusBtn);
+    // ── 2. More button + menu ─────────────────────────────────────────
+    var moreWrap = document.createElement("div");
+    moreWrap.style.position = "relative";
 
-    // Scale reset
-    var resetBtn = document.createElement("div");
-    resetBtn.className = "se-btn";
-    resetBtn.title = "Reset scale (0)";
-    resetBtn.textContent = "⟲";
-    resetBtn.onclick = function () { resetScale(reveal, cfg); };
-    bar.appendChild(resetBtn);
+    var moreBtn = document.createElement("div");
+    moreBtn.className = "se-btn";
+    moreBtn.title = "More settings";
+    moreBtn.innerHTML = "<span>⋯</span>";
+    moreBtn.onclick = function (e) {
+        e.stopPropagation();
+        document.getElementById("se-more-menu").classList.toggle("open");
+        closeAllPops("se-more-menu");
+        renderMoreMenu(reveal, cfg);
+    };
+    moreWrap.appendChild(moreBtn);
 
-    // TOC button
+    var moreMenu = document.createElement("div");
+    moreMenu.className = "se-pop";
+    moreMenu.id = "se-more-menu";
+    moreWrap.appendChild(moreMenu);
+    bar.appendChild(moreWrap);
+
+    // ── 3. TOC button ─────────────────────────────────────────────────
     var tocBtn = document.createElement("div");
     tocBtn.className = "se-btn";
     tocBtn.title = "Table of Contents (t)";
@@ -824,7 +917,7 @@ function initControlBar(reveal, cfg) {
     tocBtn.onclick = function () { toggleTOC(reveal); };
     bar.appendChild(tocBtn);
 
-    // Preview button
+    // ── 4. Preview button ─────────────────────────────────────────────
     var prevBtn = document.createElement("div");
     prevBtn.className = "se-btn";
     prevBtn.title = "Preview views (v)";
@@ -834,13 +927,24 @@ function initControlBar(reveal, cfg) {
 
     document.body.appendChild(bar);
 
+    // Wire scale popup buttons (after DOM insertion)
+    document.getElementById("se-s-minus").onclick = function (e) { e.stopPropagation(); adjustScale(reveal, cfg, -0.05); };
+    document.getElementById("se-s-plus").onclick = function (e) { e.stopPropagation(); adjustScale(reveal, cfg, 0.05); };
+    document.getElementById("se-s-reset").onclick = function (e) { e.stopPropagation(); resetScale(reveal, cfg); };
+    document.getElementById("se-mode-btn").onclick = function (e) { e.stopPropagation(); toggleSlideMode(reveal, cfg); };
+
+    // Close popups when clicking outside
+    document.addEventListener("click", function (e) {
+        if (!e.target.closest("#se-ctl")) closeAllPops();
+    });
+
     // Sync on slide change
     reveal.on("slidechanged", function () { syncControlBar(reveal); });
 
     // Keyboard shortcuts
     document.addEventListener("keydown", function (e) {
         if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
-        if (previewState.current !== "off") return; // preview handles its own keys
+        if (previewState.current !== "off") return;
         if (document.getElementById("se-toc-overlay") &&
             document.getElementById("se-toc-overlay").classList.contains("open")) return;
 
@@ -861,6 +965,230 @@ function initControlBar(reveal, cfg) {
             resetScale(reveal, cfg);
         }
     });
+
+    // Initial sync
+    syncControlBar(reveal);
+}
+
+// ── More menu renderer ────────────────────────────────────────────────
+function renderMoreMenu(reveal, cfg) {
+    var menu = document.getElementById("se-more-menu");
+    if (!menu) return;
+    menu.innerHTML = "";
+
+    // Helper: create section
+    function addSection(label) {
+        var sec = document.createElement("div");
+        sec.className = "menu-section";
+        var lbl = document.createElement("div");
+        lbl.className = "menu-label";
+        lbl.textContent = label;
+        sec.appendChild(lbl);
+        menu.appendChild(sec);
+        return sec;
+    }
+    function addSep() {
+        var sep = document.createElement("div");
+        sep.className = "se-sep";
+        menu.appendChild(sep);
+    }
+    function addToggle(section, label, active, onclick) {
+        var btn = document.createElement("button");
+        btn.className = "menu-item";
+        var span = document.createElement("span");
+        span.textContent = label;
+        var check = document.createElement("span");
+        check.textContent = active ? "✓" : "";
+        check.style.marginLeft = "auto";
+        check.style.opacity = "0.5";
+        btn.appendChild(span);
+        btn.appendChild(check);
+        btn.onclick = function (e) { e.stopPropagation(); onclick(); renderMoreMenu(reveal, cfg); };
+        section.appendChild(btn);
+    }
+
+    // ── Banner ────────────────────────────────────────────────────────
+    var bannerSec = addSection("Banner");
+    var bannerEl = document.getElementById("se-banner");
+    var bannerVisible = bannerEl && bannerEl.classList.contains("visible");
+    addToggle(bannerSec, "Show banner", bannerVisible, function () {
+        if (bannerEl) bannerEl.classList.toggle("visible");
+    });
+    addSep();
+
+    // ── Layout ────────────────────────────────────────────────────────
+    var layoutSec = addSection("Layout");
+    addToggle(layoutSec, "Block lists", rtState.listBlock, function () {
+        rtState.listBlock = !rtState.listBlock;
+        var revealEl = document.querySelector(".reveal");
+        if (revealEl) revealEl.classList.toggle("list-block", rtState.listBlock);
+        persistRtState();
+    });
+    addToggle(layoutSec, rtState.transition === "fade" ? "Transition: fade" : "Transition: none", true, function () {
+        rtState.transition = rtState.transition === "fade" ? "none" : "fade";
+        reveal.configure({ transition: rtState.transition });
+        persistRtState();
+    });
+    addToggle(layoutSec, "Progress bar", rtState.showProgress !== false, function () {
+        rtState.showProgress = !rtState.showProgress;
+        reveal.configure({ progress: rtState.showProgress });
+        persistRtState();
+    });
+    addToggle(layoutSec, "Mouse wheel nav", !!rtState.mouseWheel, function () {
+        rtState.mouseWheel = !rtState.mouseWheel;
+        reveal.configure({ mouseWheel: rtState.mouseWheel });
+        persistRtState();
+    });
+    addSep();
+
+    // ── Default Scale ─────────────────────────────────────────────────
+    var dsSec = addSection("Default Scale");
+    var dsRow = document.createElement("div");
+    dsRow.className = "scale-row";
+    var dsMinus = document.createElement("button");
+    dsMinus.textContent = "−";
+    dsMinus.onclick = function (e) { e.stopPropagation(); dsBump(reveal, cfg, -0.1); };
+    var dsVal = document.createElement("span");
+    dsVal.className = "val";
+    dsVal.textContent = Math.round(rtState.defaultScale * 100) + "%";
+    var dsPlus = document.createElement("button");
+    dsPlus.textContent = "+";
+    dsPlus.onclick = function (e) { e.stopPropagation(); dsBump(reveal, cfg, 0.1); };
+    var dsReset = document.createElement("button");
+    dsReset.textContent = "⟲";
+    dsReset.onclick = function (e) {
+        e.stopPropagation();
+        rtState.defaultScale = 1.0;
+        persistRtState();
+        applySmartScrollZoom(reveal, cfg);
+        renderMoreMenu(reveal, cfg);
+    };
+    dsRow.appendChild(dsMinus);
+    dsRow.appendChild(dsVal);
+    dsRow.appendChild(dsPlus);
+    dsRow.appendChild(dsReset);
+    dsSec.appendChild(dsRow);
+    addSep();
+
+    // ── Slide Theme ───────────────────────────────────────────────────
+    var themeSec = addSection("Slide Theme");
+    var currentTheme = rtState.slideTheme || "black";
+    SLIDE_THEMES.forEach(function (t) {
+        var btn = document.createElement("button");
+        btn.className = "menu-item" + (t.id === currentTheme ? " active" : "");
+        btn.textContent = t.label;
+        btn.onclick = function (e) {
+            e.stopPropagation();
+            applySlideTheme(reveal, t.id);
+            renderMoreMenu(reveal, cfg);
+        };
+        themeSec.appendChild(btn);
+    });
+    addSep();
+
+    // ── Type Scale ────────────────────────────────────────────────────
+    var tsSec = addSection("Type Scale");
+    var currentRatio = rtState.typeScaleRatio || (cfg.typeScaleRatio || 1.333);
+    TYPE_SCALES.forEach(function (s) {
+        var btn = document.createElement("button");
+        btn.className = "menu-item" + (Math.abs(currentRatio - s.ratio) < 0.01 ? " active" : "");
+        btn.textContent = s.label;
+        btn.onclick = function (e) {
+            e.stopPropagation();
+            applyTypeScaleRatio(s.ratio);
+            renderMoreMenu(reveal, cfg);
+        };
+        tsSec.appendChild(btn);
+    });
+    // Fine-tuning slider
+    var sliderRow = document.createElement("div");
+    sliderRow.className = "slider-row";
+    var slider = document.createElement("input");
+    slider.type = "range";
+    slider.min = "1.0";
+    slider.max = "1.8";
+    slider.step = "0.01";
+    slider.value = currentRatio;
+    var sliderVal = document.createElement("span");
+    sliderVal.className = "val";
+    sliderVal.textContent = currentRatio.toFixed(3);
+    slider.addEventListener("input", function (e) {
+        e.stopPropagation();
+        var v = parseFloat(e.target.value);
+        sliderVal.textContent = v.toFixed(3);
+        applyTypeScaleRatio(v);
+    });
+    sliderRow.appendChild(slider);
+    sliderRow.appendChild(sliderVal);
+    tsSec.appendChild(sliderRow);
+    addSep();
+
+    // ── Font ──────────────────────────────────────────────────────────
+    var fontSec = addSection("Font");
+    var currentFont = rtState.fontId || (cfg.fontFamily || "system");
+    FONTS.forEach(function (f) {
+        var btn = document.createElement("button");
+        btn.className = "menu-item" + (f.id === currentFont ? " active" : "");
+        btn.textContent = f.label;
+        btn.style.fontFamily = f.value;
+        btn.onclick = function (e) {
+            e.stopPropagation();
+            applyFontRuntime(f.id, f.value, reveal, cfg);
+            renderMoreMenu(reveal, cfg);
+        };
+        fontSec.appendChild(btn);
+    });
+}
+
+// ── More-menu action helpers ──────────────────────────────────────────
+function dsBump(reveal, cfg, delta) {
+    rtState.defaultScale = Math.round((rtState.defaultScale + delta) * 100) / 100;
+    rtState.defaultScale = Math.max(0.5, Math.min(2, rtState.defaultScale));
+    persistRtState();
+    applySmartScrollZoom(reveal, cfg);
+    renderMoreMenu(reveal, cfg);
+}
+
+function applySlideTheme(reveal, themeId) {
+    rtState.slideTheme = themeId;
+    var themeLink = document.getElementById("theme");
+    if (themeLink) {
+        // Replace the theme filename in the existing href
+        var href = themeLink.getAttribute("href");
+        var newHref = href.replace(/[^/]+\.css$/, themeId + ".css");
+        themeLink.setAttribute("href", newHref);
+    }
+    persistRtState();
+    // Update mermaid theme for dark themes
+    if (typeof mermaid !== "undefined" && mermaid.initialize) {
+        mermaid.initialize({
+            startOnLoad: false,
+            theme: ["black", "moon"].includes(themeId) ? "dark" : "default"
+        });
+    }
+}
+
+function applyTypeScaleRatio(ratio) {
+    rtState.typeScaleRatio = ratio;
+    var slidesEl = document.querySelector(".reveal .slides");
+    if (slidesEl) {
+        slidesEl.style.setProperty("--h1-size", Math.pow(ratio, 4).toFixed(2) + "em");
+        slidesEl.style.setProperty("--h2-size", Math.pow(ratio, 3).toFixed(2) + "em");
+        slidesEl.style.setProperty("--h3-size", Math.pow(ratio, 2).toFixed(2) + "em");
+        slidesEl.style.setProperty("--h4-size", ratio.toFixed(2) + "em");
+    }
+    persistRtState();
+}
+
+function applyFontRuntime(fontId, fontValue, reveal, cfg) {
+    rtState.fontId = fontId;
+    var slidesEl = document.querySelector(".reveal .slides");
+    if (slidesEl) {
+        slidesEl.style.setProperty("--font-family", fontValue);
+    }
+    persistRtState();
+    // Re-run scroll/zoom since font change affects content height
+    applySmartScrollZoom(reveal, cfg);
 }
 
 // Per-slide manual overrides
@@ -926,16 +1254,17 @@ function syncControlBar(reveal) {
     var slide = reveal.getCurrentSlide();
     if (!slide) return;
     var isScrolling = slide.classList.contains("se-scroll");
+
+    // Scale popup: mode icon + value
+    var modeIco = document.getElementById("se-mode-ico");
     var modeBtn = document.getElementById("se-mode-btn");
-    var scaleLabel = document.getElementById("se-scale-label");
-    if (modeBtn) {
-        modeBtn.textContent = isScrolling ? "↕️" : "🔍";
-        modeBtn.title = isScrolling ? "Mode: Scroll (s)" : "Mode: Zoom (s)";
-    }
-    if (scaleLabel) {
-        var z = parseFloat(slide.style.zoom);
-        scaleLabel.textContent = z ? Math.round(z * 100) + "%" : "auto";
-    }
+    var sVal = document.getElementById("se-s-val");
+    var scaleIco = document.getElementById("se-scale-ico");
+    if (modeIco) modeIco.textContent = isScrolling ? "↕️" : "🔍";
+    if (modeBtn) modeBtn.title = isScrolling ? "Mode: Scroll (s)" : "Mode: Zoom (s)";
+    if (scaleIco) scaleIco.textContent = isScrolling ? "↕️" : "🔍";
+    var z = parseFloat(slide.style.zoom);
+    if (sVal) sVal.textContent = z ? Math.round(z * 100) + "%" : "auto";
 }
 
 })();
