@@ -762,7 +762,11 @@ var rtState = {
     showProgress: true,
     mouseWheel: false,
     listBlock: false,
-    defaultScale: 1.0
+    defaultScale: 1.0,
+    align: "left",
+    scaleMode: "classic",
+    dualRatioMin: 1.200,
+    dualRatioMax: 1.414
 };
 var LS_KEY = "se-smart-v1";
 function loadRtState() {
@@ -788,6 +792,12 @@ var TYPE_SCALES = [
     { id: "perfect-fourth", label: "Perfect Fourth (1.333)", ratio: 1.333 },
     { id: "perfect-fifth", label: "Perfect Fifth (1.500)", ratio: 1.500 }
 ];
+var SCALE_MODES = [
+    { id: "classic", label: "Classic Modular" },
+    { id: "dual-ratio", label: "Dual-Ratio (Utopia)" },
+    { id: "material", label: "Material Design 3" }
+];
+var MD3_SIZES = { h1: 2.25, h2: 1.75, h3: 1.375, h4: 1.125 };
 
 function closeAllPops(except) {
     ["se-scale-pop", "se-more-menu"].forEach(function (id) {
@@ -808,6 +818,12 @@ function initControlBar(reveal, cfg) {
     reveal.configure({ progress: rtState.showProgress !== false });
     reveal.configure({ mouseWheel: !!rtState.mouseWheel });
     if (rtState.listBlock) document.querySelector(".reveal")?.classList.add("list-block");
+    // Alignment
+    var revealEl = document.querySelector(".reveal");
+    if (revealEl && rtState.align) {
+        revealEl.className = revealEl.className.replace(/\balign-\w+/g, "");
+        revealEl.classList.add("align-" + rtState.align);
+    }
     if (rtState.fontId) {
         var f = FONTS.find(function (x) { return x.id === rtState.fontId; });
         if (f) {
@@ -850,7 +866,21 @@ function initControlBar(reveal, cfg) {
         "#se-more-menu .scale-row .val{min-width:44px;text-align:center;color:#9aa3b2;font-size:12px}" +
         "#se-more-menu .slider-row{display:flex;align-items:center;gap:6px;padding:4px 8px}" +
         "#se-more-menu .slider-row input[type=range]{flex:1;height:4px;accent-color:#5aa9ff;cursor:pointer}" +
-        "#se-more-menu .slider-row .val{min-width:36px;text-align:right;color:#9aa3b2;font-size:11px}";
+        "#se-more-menu .slider-row .val{min-width:36px;text-align:right;color:#9aa3b2;font-size:11px}" +
+        /* alignment */
+        ".reveal.align-left .slides section{text-align:left}" +
+        ".reveal.align-center .slides section{text-align:center}" +
+        ".reveal.align-right .slides section{text-align:right}" +
+        ".reveal.align-left .slides section :is(h1,h2,h3,h4){text-align:left}" +
+        ".reveal.align-center .slides section :is(h1,h2,h3,h4){text-align:center}" +
+        ".reveal.align-right .slides section :is(h1,h2,h3,h4){text-align:right}" +
+        /* help overlay */
+        "#se-help-overlay{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.75);display:none;align-items:center;justify-content:center;backdrop-filter:blur(4px)}" +
+        "#se-help-overlay.open{display:flex}" +
+        "#se-help-box{background:rgba(28,32,40,.95);border:1px solid rgba(255,255,255,.15);border-radius:12px;padding:24px 32px;color:#e6e9ef;font:14px/1.8 -apple-system,sans-serif;max-width:420px;width:90%}" +
+        "#se-help-box h3{margin:0 0 12px;font-size:16px;color:#5aa9ff}" +
+        "#se-help-box .hk{display:flex;justify-content:space-between;padding:2px 0}" +
+        "#se-help-box .hk kbd{background:rgba(255,255,255,.1);border-radius:4px;padding:1px 8px;font:12px/1.6 monospace;color:#ffd9a0}";
     document.head.appendChild(style);
 
     // ── Build control bar ─────────────────────────────────────────────
@@ -882,6 +912,8 @@ function initControlBar(reveal, cfg) {
         '<span class="val" id="se-s-val">auto</span>' +
         '<button id="se-s-plus" title="Increase scale">+</button>' +
         '<button id="se-s-reset" title="Reset scale">⟲</button>' +
+        '<span class="sep"></span>' +
+        '<button id="se-align-btn" title="Alignment"><span id="se-align-ico">⬅</span></button>' +
         '<span class="sep"></span>' +
         '<button id="se-mode-btn" title="Scroll ↔ Zoom"><span id="se-mode-ico">🔍</span></button>';
     scaleWrap.appendChild(scalePop);
@@ -927,11 +959,43 @@ function initControlBar(reveal, cfg) {
 
     document.body.appendChild(bar);
 
+    // ── Help overlay ──────────────────────────────────────────────────
+    var helpOverlay = document.createElement("div");
+    helpOverlay.id = "se-help-overlay";
+    var helpBox = document.createElement("div");
+    helpBox.id = "se-help-box";
+    helpBox.innerHTML =
+        '<h3>Keyboard Shortcuts</h3>' +
+        '<div class="hk"><span>Scale up / down</span><kbd>+</kbd> <kbd>−</kbd></div>' +
+        '<div class="hk"><span>Reset scale</span><kbd>0</kbd></div>' +
+        '<div class="hk"><span>Scroll ↔ Zoom toggle</span><kbd>s</kbd></div>' +
+        '<div class="hk"><span>Table of contents</span><kbd>t</kbd></div>' +
+        '<div class="hk"><span>Preview views</span><kbd>v</kbd></div>' +
+        '<div class="hk"><span>Help</span><kbd>h</kbd></div>' +
+        '<div class="hk"><span>Fullscreen</span><kbd>f</kbd></div>' +
+        '<div class="hk"><span>Overview</span><kbd>Esc</kbd></div>' +
+        '<div style="margin-top:12px;font-size:11px;color:rgba(255,255,255,.4)">Press <kbd>h</kbd> or click to close</div>';
+    helpOverlay.appendChild(helpBox);
+    helpOverlay.onclick = function () { helpOverlay.classList.remove("open"); };
+    document.body.appendChild(helpOverlay);
+
     // Wire scale popup buttons (after DOM insertion)
     document.getElementById("se-s-minus").onclick = function (e) { e.stopPropagation(); adjustScale(reveal, cfg, -0.05); };
     document.getElementById("se-s-plus").onclick = function (e) { e.stopPropagation(); adjustScale(reveal, cfg, 0.05); };
     document.getElementById("se-s-reset").onclick = function (e) { e.stopPropagation(); resetScale(reveal, cfg); };
     document.getElementById("se-mode-btn").onclick = function (e) { e.stopPropagation(); toggleSlideMode(reveal, cfg); };
+    document.getElementById("se-align-btn").onclick = function (e) {
+        e.stopPropagation();
+        var cycle = { left: "center", center: "right", right: "left" };
+        rtState.align = cycle[rtState.align] || "left";
+        var rev = document.querySelector(".reveal");
+        if (rev) {
+            rev.className = rev.className.replace(/\balign-\w+/g, "");
+            rev.classList.add("align-" + rtState.align);
+        }
+        persistRtState();
+        syncControlBar(reveal);
+    };
 
     // Close popups when clicking outside
     document.addEventListener("click", function (e) {
@@ -963,6 +1027,11 @@ function initControlBar(reveal, cfg) {
         if (e.key === "0" && !e.ctrlKey && !e.metaKey) {
             e.preventDefault();
             resetScale(reveal, cfg);
+        }
+        if (e.key === "h" && !e.ctrlKey && !e.metaKey) {
+            e.preventDefault();
+            var ho = document.getElementById("se-help-overlay");
+            if (ho) ho.classList.toggle("open");
         }
     });
 
@@ -1088,39 +1157,90 @@ function renderMoreMenu(reveal, cfg) {
 
     // ── Type Scale ────────────────────────────────────────────────────
     var tsSec = addSection("Type Scale");
-    var currentRatio = rtState.typeScaleRatio || (cfg.typeScaleRatio || 1.333);
-    TYPE_SCALES.forEach(function (s) {
+    var curScaleMode = rtState.scaleMode || "classic";
+    // Scale mode selector
+    SCALE_MODES.forEach(function (m) {
         var btn = document.createElement("button");
-        btn.className = "menu-item" + (Math.abs(currentRatio - s.ratio) < 0.01 ? " active" : "");
-        btn.textContent = s.label;
+        btn.className = "menu-item" + (m.id === curScaleMode ? " active" : "");
+        btn.textContent = m.label;
         btn.onclick = function (e) {
             e.stopPropagation();
-            applyTypeScaleRatio(s.ratio);
+            rtState.scaleMode = m.id;
+            applyTypeScaleFromMode(reveal, cfg);
             renderMoreMenu(reveal, cfg);
         };
         tsSec.appendChild(btn);
     });
-    // Fine-tuning slider
-    var sliderRow = document.createElement("div");
-    sliderRow.className = "slider-row";
-    var slider = document.createElement("input");
-    slider.type = "range";
-    slider.min = "1.0";
-    slider.max = "1.8";
-    slider.step = "0.01";
-    slider.value = currentRatio;
-    var sliderVal = document.createElement("span");
-    sliderVal.className = "val";
-    sliderVal.textContent = currentRatio.toFixed(3);
-    slider.addEventListener("input", function (e) {
-        e.stopPropagation();
-        var v = parseFloat(e.target.value);
-        sliderVal.textContent = v.toFixed(3);
-        applyTypeScaleRatio(v);
-    });
-    sliderRow.appendChild(slider);
-    sliderRow.appendChild(sliderVal);
-    tsSec.appendChild(sliderRow);
+
+    // Mode-specific controls
+    if (curScaleMode === "classic") {
+        var currentRatio = rtState.typeScaleRatio || (cfg.typeScaleRatio || 1.333);
+        TYPE_SCALES.forEach(function (s) {
+            var btn = document.createElement("button");
+            btn.className = "menu-item" + (Math.abs(currentRatio - s.ratio) < 0.01 ? " active" : "");
+            btn.textContent = "  " + s.label;
+            btn.style.paddingLeft = "16px";
+            btn.onclick = function (e) {
+                e.stopPropagation();
+                rtState.typeScaleRatio = s.ratio;
+                applyTypeScaleFromMode(reveal, cfg);
+                renderMoreMenu(reveal, cfg);
+            };
+            tsSec.appendChild(btn);
+        });
+        // Fine-tuning slider
+        var sliderRow = document.createElement("div");
+        sliderRow.className = "slider-row";
+        var slider = document.createElement("input");
+        slider.type = "range";
+        slider.min = "1.0";
+        slider.max = "1.8";
+        slider.step = "0.01";
+        slider.value = currentRatio;
+        var sliderVal = document.createElement("span");
+        sliderVal.className = "val";
+        sliderVal.textContent = currentRatio.toFixed(3);
+        slider.addEventListener("input", function (e) {
+            e.stopPropagation();
+            var v = parseFloat(e.target.value);
+            sliderVal.textContent = v.toFixed(3);
+            rtState.typeScaleRatio = v;
+            applyTypeScaleFromMode(reveal, cfg);
+        });
+        sliderRow.appendChild(slider);
+        sliderRow.appendChild(sliderVal);
+        tsSec.appendChild(sliderRow);
+    } else if (curScaleMode === "dual-ratio") {
+        // Two sliders: tight and open ratio
+        function mkDualSlider(label, getter, setter) {
+            var lbl = document.createElement("div");
+            lbl.className = "menu-label";
+            lbl.style.paddingTop = "4px";
+            lbl.textContent = label;
+            tsSec.appendChild(lbl);
+            var row = document.createElement("div");
+            row.className = "slider-row";
+            var inp = document.createElement("input");
+            inp.type = "range"; inp.min = "1.0"; inp.max = "1.8"; inp.step = "0.01"; inp.value = getter();
+            var val = document.createElement("span");
+            val.className = "val";
+            val.textContent = getter().toFixed(3);
+            inp.addEventListener("input", function (e) {
+                e.stopPropagation();
+                setter(parseFloat(e.target.value));
+                val.textContent = getter().toFixed(3);
+                applyTypeScaleFromMode(reveal, cfg);
+            });
+            row.appendChild(inp); row.appendChild(val); tsSec.appendChild(row);
+        }
+        mkDualSlider("Tight ratio (small)", function () { return rtState.dualRatioMin; }, function (v) { rtState.dualRatioMin = v; });
+        mkDualSlider("Open ratio (large)", function () { return rtState.dualRatioMax; }, function (v) { rtState.dualRatioMax = v; });
+    } else if (curScaleMode === "material") {
+        var info = document.createElement("div");
+        info.style.cssText = "padding:4px 8px;font-size:11px;color:#9aa3b2;line-height:1.6";
+        info.innerHTML = "h1: " + MD3_SIZES.h1 + "em · h2: " + MD3_SIZES.h2 + "em<br>h3: " + MD3_SIZES.h3 + "em · h4: " + MD3_SIZES.h4 + 'em<br><span style="opacity:.5">Hand-tuned, non-adjustable</span>';
+        tsSec.appendChild(info);
+    }
     addSep();
 
     // ── Font ──────────────────────────────────────────────────────────
@@ -1168,14 +1288,47 @@ function applySlideTheme(reveal, themeId) {
     }
 }
 
+function applyTypeScaleFromMode(reveal, cfg) {
+    var slidesEl = document.querySelector(".reveal .slides");
+    if (!slidesEl) return;
+    var h1, h2, h3, h4;
+    var mode = rtState.scaleMode || "classic";
+
+    if (mode === "classic") {
+        var r = rtState.typeScaleRatio || 1.333;
+        h1 = r * r * r; h2 = r * r; h3 = r; h4 = Math.pow(r, 0.5);
+    } else if (mode === "dual-ratio") {
+        var blend = 0.5;
+        var rMin = rtState.dualRatioMin || 1.2;
+        var rMax = rtState.dualRatioMax || 1.414;
+        function lerp(a, b, t) { return a + (b - a) * t; }
+        h1 = lerp(rMin * rMin * rMin, rMax * rMax * rMax, blend);
+        h2 = lerp(rMin * rMin, rMax * rMax, blend);
+        h3 = lerp(rMin, rMax, blend);
+        h4 = lerp(Math.pow(rMin, 0.5), Math.pow(rMax, 0.5), blend);
+    } else if (mode === "material") {
+        h1 = MD3_SIZES.h1; h2 = MD3_SIZES.h2; h3 = MD3_SIZES.h3; h4 = MD3_SIZES.h4;
+    }
+
+    slidesEl.style.setProperty("--h1-size", h1.toFixed(3) + "em");
+    slidesEl.style.setProperty("--h2-size", h2.toFixed(3) + "em");
+    slidesEl.style.setProperty("--h3-size", h3.toFixed(3) + "em");
+    slidesEl.style.setProperty("--h4-size", h4.toFixed(3) + "em");
+    persistRtState();
+    // Re-run scroll/zoom since heading sizes affect content height
+    applySmartScrollZoom(reveal, cfg);
+}
+
+// Keep the simple ratio-only version for backward compat
 function applyTypeScaleRatio(ratio) {
     rtState.typeScaleRatio = ratio;
+    rtState.scaleMode = "classic";
     var slidesEl = document.querySelector(".reveal .slides");
     if (slidesEl) {
-        slidesEl.style.setProperty("--h1-size", Math.pow(ratio, 4).toFixed(2) + "em");
-        slidesEl.style.setProperty("--h2-size", Math.pow(ratio, 3).toFixed(2) + "em");
-        slidesEl.style.setProperty("--h3-size", Math.pow(ratio, 2).toFixed(2) + "em");
-        slidesEl.style.setProperty("--h4-size", ratio.toFixed(2) + "em");
+        slidesEl.style.setProperty("--h1-size", Math.pow(ratio, 3).toFixed(2) + "em");
+        slidesEl.style.setProperty("--h2-size", Math.pow(ratio, 2).toFixed(2) + "em");
+        slidesEl.style.setProperty("--h3-size", ratio.toFixed(2) + "em");
+        slidesEl.style.setProperty("--h4-size", Math.pow(ratio, 0.5).toFixed(2) + "em");
     }
     persistRtState();
 }
@@ -1260,11 +1413,16 @@ function syncControlBar(reveal) {
     var modeBtn = document.getElementById("se-mode-btn");
     var sVal = document.getElementById("se-s-val");
     var scaleIco = document.getElementById("se-scale-ico");
+    var alignIco = document.getElementById("se-align-ico");
     if (modeIco) modeIco.textContent = isScrolling ? "↕️" : "🔍";
     if (modeBtn) modeBtn.title = isScrolling ? "Mode: Scroll (s)" : "Mode: Zoom (s)";
     if (scaleIco) scaleIco.textContent = isScrolling ? "↕️" : "🔍";
     var z = parseFloat(slide.style.zoom);
     if (sVal) sVal.textContent = z ? Math.round(z * 100) + "%" : "auto";
+    if (alignIco) {
+        var icons = { left: "⬅", center: "⬛", right: "➡" };
+        alignIco.textContent = icons[rtState.align] || "⬅";
+    }
 }
 
 })();
